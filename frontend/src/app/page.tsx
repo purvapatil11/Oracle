@@ -5,7 +5,7 @@ import { useAccount, useConnect, useDisconnect, useReadContract, useWriteContrac
 import { parseEther } from "viem";
 import { injected } from "wagmi/connectors";
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from "@/config/contract";
-import { Shield, Activity, Globe, CheckCircle2, AlertTriangle, Coins } from "lucide-react";
+import { Shield, Activity, Globe, CheckCircle2, Coins } from "lucide-react";
 
 export default function Dashboard() {
   const { address, isConnected } = useAccount();
@@ -21,12 +21,30 @@ export default function Dashboard() {
   const [selectedWebId, setSelectedWebId] = useState("1");
   const [pingRegion, setPingRegion] = useState("Asia-South");
 
-  // Read total websites count from contract
+  // 1. Read total websites count from contract
   const { data: websiteCount } = useReadContract({
     address: CONTRACT_ADDRESS,
     abi: CONTRACT_ABI,
     functionName: "websiteCount",
   });
+
+  // 2. Hydrate data for Website ID 1 for live tracking view
+  const { data: websiteData } = useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: CONTRACT_ABI,
+    functionName: "websites",
+    args: [BigInt(1)],
+  });
+
+  // 3. Format dynamic on-chain array cleanly if data exists
+  const activeWebsites = websiteData ? [
+    {
+      id: 1,
+      url: (websiteData as any)[0],
+      pool: `${Number((websiteData as any)[2]) / 1e18} MON`,
+      status: (websiteData as any)[3] ? "Healthy" : "Inactive"
+    }
+  ] : [];
 
   // Action: Register a Website
   const handleRegister = async () => {
@@ -165,6 +183,33 @@ export default function Dashboard() {
                 <span className="text-xs text-slate-500 block">Active Status Queries</span>
                 <span className="text-xl font-bold font-mono text-slate-300">Live Tracker Active</span>
               </div>
+            </div>
+          </div>
+
+          {/* Active Real-Time Monitors */}
+          <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-5">
+            <h3 className="text-sm font-semibold text-slate-400 mb-4">On-Chain Registered Infrastructure</h3>
+            <div className="space-y-3">
+              {activeWebsites.length > 0 ? (
+                activeWebsites.map((site) => (
+                  <div key={site.id} className="flex items-center justify-between p-3.5 bg-slate-950 border border-slate-800/60 rounded-xl">
+                    <div>
+                      <h4 className="text-sm font-medium text-slate-200 font-mono">{site.url}</h4>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[10px] text-slate-500 font-mono">ID: {site.id}</span>
+                        <span className="text-[10px] bg-slate-900 px-2 py-0.5 rounded border border-slate-800 text-slate-400 font-mono flex items-center gap-1">
+                          <Coins className="h-2.5 w-2.5" /> Pool: {site.pool}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-xs bg-emerald-950 text-emerald-400 px-2.5 py-1 rounded-md border border-emerald-900 flex items-center gap-1.5 font-medium">
+                      <CheckCircle2 className="h-3.5 w-3.5" /> {site.status}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-slate-500 font-mono">No registered websites visible on-chain yet.</p>
+              )}
             </div>
           </div>
         </div>
